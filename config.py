@@ -30,8 +30,8 @@ class Config:
     DW_USER = os.getenv('DW_USER', os.getenv('PGUSER', 'dw_user'))
     DW_PASSWORD = os.getenv('DW_PASSWORD', os.getenv('PGPASSWORD', 'dw_password'))
     
-    # Frontend
-    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+    # Frontend - Use the same Railway domain since we serve HTML from Flask
+    FRONTEND_URL = os.getenv('FRONTEND_URL', railway_domain)
     
     # JWT
     JWT_TOKEN_LOCATION = ['headers']

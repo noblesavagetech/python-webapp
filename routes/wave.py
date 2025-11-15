@@ -198,11 +198,9 @@ def callback():
         db.session.commit()
         
         # Redirect to the dashboard with a success indicator
-        # Use the Railway app URL, not a separate frontend URL
-        railway_url = current_app.config.get('RAILWAY_STATIC_URL') or \
-                     current_app.config.get('FRONTEND_URL', 'http://localhost:5000')
-        print(f"Redirecting to: {railway_url}/dashboard?wave_connected=true")
-        return redirect(f"{railway_url}/dashboard?wave_connected=true")
+        frontend_url = current_app.config.get('FRONTEND_URL')
+        print(f"Redirecting to: {frontend_url}/dashboard?wave_connected=true")
+        return redirect(f"{frontend_url}/dashboard?wave_connected=true")
         
     except Exception as e:
         db.session.rollback()
