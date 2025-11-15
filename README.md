@@ -72,15 +72,27 @@ pip install -r requirements.txt
 python app.py
 ```
 
+For development with debug mode enabled:
+```bash
+FLASK_DEBUG=true python app.py
+```
+
+**Security Note**: Debug mode should NEVER be enabled in production as it can allow attackers to execute arbitrary code.
+
 2. Open your web browser and navigate to:
 ```
 http://localhost:5000
 ```
 
-The application will be running in debug mode, which means:
+When debug mode is enabled (`FLASK_DEBUG=true`), you get:
 - Auto-reload on code changes
 - Detailed error messages
 - Accessible at `http://0.0.0.0:5000` (visible to other devices on your network)
+
+### Environment Variables
+
+- `FLASK_DEBUG`: Set to `true` to enable debug mode (default: `false`)
+- `SECRET_KEY`: Secret key for session management (default: auto-generated)
 
 ## Pages
 
@@ -152,15 +164,20 @@ def api_endpoint():
 
 For production deployment, consider:
 
-1. Set `debug=False` in `app.py`
-2. Use a production WSGI server like Gunicorn:
+1. **Ensure debug mode is disabled** (default behavior - do not set `FLASK_DEBUG=true`)
+2. Set a strong secret key via environment variable:
+   ```bash
+   export SECRET_KEY="your-strong-random-secret-key-here"
+   ```
+3. Use a production WSGI server like Gunicorn:
    ```bash
    pip install gunicorn
    gunicorn -w 4 app:app
    ```
-3. Set up a reverse proxy (Nginx or Apache)
-4. Use environment variables for sensitive configuration
+4. Set up a reverse proxy (Nginx or Apache)
 5. Enable HTTPS/SSL
+6. Use a proper database instead of in-memory data
+7. Implement proper logging and monitoring
 
 ## License
 

@@ -1,9 +1,11 @@
+import os
 from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 
 # Configure the app
-app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 
 @app.route('/')
 def index():
@@ -42,4 +44,7 @@ def get_data():
     return jsonify(sample_data)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Note: Set FLASK_DEBUG=true environment variable to enable debug mode
+    # Debug mode should NEVER be enabled in production
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(debug=debug_mode, host='0.0.0.0', port=5000)
