@@ -32,6 +32,8 @@ pip install -r requirements.txt
 
 ## Usage
 
+### Development Mode
+
 1. Run the application:
 ```bash
 python app.py
@@ -40,6 +42,21 @@ python app.py
 2. Open your browser and navigate to:
 ```
 http://localhost:5000
+```
+
+**Security Note**: Never run Flask applications in debug mode in production environments. Debug mode can expose sensitive information and allow arbitrary code execution through the debugger.
+
+
+### Production Mode
+
+For production deployment, disable debug mode by setting the `FLASK_DEBUG` environment variable:
+
+```bash
+export FLASK_DEBUG=0
+python app.py
+```
+
+**Security Note**: Never run Flask applications in debug mode in production environments. Debug mode can expose sensitive information and allow arbitrary code execution through the debugger.
 ```
 
 The application will automatically create a SQLite database (`database.db`) on first run.
