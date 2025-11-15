@@ -17,6 +17,11 @@ wave_bp = Blueprint('wave', __name__)
 def authorize():
     """Initiate Wave OAuth flow"""
     try:
+        # Check if Wave is configured
+        if (current_app.config['WAVE_CLIENT_ID'].startswith('dummy') or 
+            current_app.config['WAVE_CLIENT_SECRET'].startswith('dummy')):
+            return jsonify({'error': 'Wave Apps integration not configured. Please set WAVE_CLIENT_ID and WAVE_CLIENT_SECRET environment variables.'}), 400
+        
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         

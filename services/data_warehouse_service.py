@@ -4,7 +4,7 @@ from datetime import datetime
 
 
 class DataWarehouseService:
-    """Service for syncing data to the data warehouse"""
+    """Service for syncing data to data warehouse"""
     
     def __init__(self, config):
         self.config = config
@@ -13,13 +13,41 @@ class DataWarehouseService:
     def get_connection(self):
         """Get or create database connection"""
         if not self.connection or self.connection.closed:
-            self.connection = psycopg2.connect(
-                host=self.config['DW_HOST'],
-                port=self.config['DW_PORT'],
-                database=self.config['DW_DATABASE'],
-                user=self.config['DW_USER'],
-                password=self.config['DW_PASSWORD']
-            )
+            # Try to use the main app database if DW config is default
+            if (self.config.get('DW_HOST') == 'localhost' and 
+                self.config.get('DW_DATABASE') == 'financial_dw'):
+                # Use main app database connection
+                main_db_url = self.config.get('SQLALCHEMY_DATABASE_URI', 'sqlite:///financial_health.db')
+                if main_db_url.startswith('postgresql'):
+                    # Parse PostgreSQL URL
+                    import re
+                    match = re.match(r'postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', main_db_url)
+                    if match:
+                        user, password, host, port, database = match.groups()
+                        self.connection = psycopg2.connect(
+                            host=host,
+                            port=int(port),
+                            database=database,
+                            user=user,
+                            password=password
+                        )
+                    else:
+                        # Fallback to SQLite for development
+                        import sqlite3
+                        self.connection = sqlite3.connect('financial_health.db')
+                else:
+                    # SQLite fallback
+                    import sqlite3
+                    self.connection = sqlite3.connect('financial_health.db')
+            else:
+                # Use configured DW settings
+                self.connection = psycopg2.connect(
+                    host=self.config['DW_HOST'],
+                    port=self.config['DW_PORT'],
+                    database=self.config['DW_DATABASE'],
+                    user=self.config['DW_USER'],
+                    password=self.config['DW_PASSWORD']
+                )
         return self.connection
     
     def close_connection(self):

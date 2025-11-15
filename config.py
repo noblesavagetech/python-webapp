@@ -6,27 +6,29 @@ load_dotenv()
 
 class Config:
     """Base configuration"""
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
+    SECRET_KEY = os.getenv('SECRET_KEY', 'railway-production-secret-key-2025')
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'railway-jwt-secret-key-2025')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
-    # Database
+    # Database - Railway automatically sets DATABASE_URL for PostgreSQL
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///financial_health.db')
     
-    # Wave Apps OAuth
-    WAVE_CLIENT_ID = os.getenv('WAVE_CLIENT_ID')
-    WAVE_CLIENT_SECRET = os.getenv('WAVE_CLIENT_SECRET')
-    WAVE_REDIRECT_URI = os.getenv('WAVE_REDIRECT_URI', 'http://localhost:5000/auth/wave/callback')
-    WAVE_AUTHORIZATION_URL = os.getenv('WAVE_AUTHORIZATION_URL', 'https://api.waveapps.com/oauth2/authorize/')
-    WAVE_TOKEN_URL = os.getenv('WAVE_TOKEN_URL', 'https://api.waveapps.com/oauth2/token/')
+    # Wave Apps OAuth - Set defaults to prevent crashes, user must configure
+    WAVE_CLIENT_ID = os.getenv('WAVE_CLIENT_ID', 'dummy-client-id')
+    WAVE_CLIENT_SECRET = os.getenv('WAVE_CLIENT_SECRET', 'dummy-client-secret')
+    # Dynamic redirect URI based on Railway domain
+    railway_domain = os.getenv('RAILWAY_STATIC_URL', 'http://localhost:5000')
+    WAVE_REDIRECT_URI = os.getenv('WAVE_REDIRECT_URI', f'{railway_domain}/api/wave/callback')
+    WAVE_AUTHORIZATION_URL = os.getenv('WAVE_AUTHORIZATION_URL', 'https://api.waveapps.com/oauth2/authorize')
+    WAVE_TOKEN_URL = os.getenv('WAVE_TOKEN_URL', 'https://api.waveapps.com/oauth2/token')
     WAVE_API_URL = os.getenv('WAVE_API_URL', 'https://gql.waveapps.com/graphql/public')
     
-    # Data Warehouse
-    DW_HOST = os.getenv('DW_HOST', 'localhost')
-    DW_PORT = os.getenv('DW_PORT', '5432')
-    DW_DATABASE = os.getenv('DW_DATABASE', 'financial_dw')
-    DW_USER = os.getenv('DW_USER', 'dw_user')
-    DW_PASSWORD = os.getenv('DW_PASSWORD', 'dw_password')
+    # Data Warehouse - Use same DB as main app for simplicity
+    DW_HOST = os.getenv('DW_HOST', os.getenv('PGHOST', 'localhost'))
+    DW_PORT = os.getenv('DW_PORT', os.getenv('PGPORT', '5432'))
+    DW_DATABASE = os.getenv('DW_DATABASE', os.getenv('PGDATABASE', 'financial_dw'))
+    DW_USER = os.getenv('DW_USER', os.getenv('PGUSER', 'dw_user'))
+    DW_PASSWORD = os.getenv('DW_PASSWORD', os.getenv('PGPASSWORD', 'dw_password'))
     
     # Frontend
     FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')

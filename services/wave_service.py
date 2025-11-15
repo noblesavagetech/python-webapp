@@ -13,9 +13,18 @@ class WaveService:
         self.config = config
         self.api_url = config['WAVE_API_URL']
         self.dw_service = DataWarehouseService(config)
+        
+        # Check if using dummy credentials
+        self.is_configured = not (
+            config.get('WAVE_CLIENT_ID', '').startswith('dummy') or
+            config.get('WAVE_CLIENT_SECRET', '').startswith('dummy')
+        )
     
     def get_valid_token(self, company_id):
         """Get a valid access token for a company, refreshing if needed"""
+        if not self.is_configured:
+            return None
+            
         wave_token = WaveToken.query.filter_by(company_id=company_id).first()
         
         if not wave_token:
