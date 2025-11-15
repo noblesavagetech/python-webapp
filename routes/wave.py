@@ -252,6 +252,10 @@ def get_wave_status():
 @jwt_required()
 def sync_wave_data():
     """Manually trigger Wave data sync"""
+    import io
+    import sys
+    from contextlib import redirect_stdout
+    
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
@@ -266,18 +270,33 @@ def sync_wave_data():
         # Use WaveService to sync data
         wave_service = WaveService(current_app.config)
         
+        # Capture stdout during sync
+        stdout_capture = io.StringIO()
         try:
-            success = wave_service.sync_company_data(user.company_id)
+            with redirect_stdout(stdout_capture):
+                success = wave_service.sync_company_data(user.company_id)
+            
+            captured_output = stdout_capture.getvalue()
             
             if success:
-                return jsonify({'message': 'Data sync completed successfully'}), 200
+                return jsonify({
+                    'message': 'Data sync completed successfully',
+                    'logs': captured_output
+                }), 200
             else:
-                return jsonify({'error': 'Failed to sync data - check server logs for details'}), 500
+                return jsonify({
+                    'error': 'Failed to sync data - check logs for details',
+                    'logs': captured_output
+                }), 500
         except Exception as sync_error:
+            captured_output = stdout_capture.getvalue()
             print(f"ERROR: Wave data sync failed: {sync_error}")
             import traceback
             traceback.print_exc()
-            return jsonify({'error': f'Sync failed: {str(sync_error)}'}), 500
+            return jsonify({
+                'error': f'Sync failed: {str(sync_error)}',
+                'logs': captured_output
+            }), 500
         
     except Exception as e:
         print(f"ERROR: Wave sync endpoint error: {e}")
