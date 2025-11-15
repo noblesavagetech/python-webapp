@@ -198,9 +198,16 @@ def callback():
         db.session.commit()
         
         # Redirect to the dashboard with a success indicator
-        frontend_url = current_app.config.get('FRONTEND_URL')
-        print(f"Redirecting to: {frontend_url}/dashboard?wave_connected=true")
-        return redirect(f"{frontend_url}/dashboard?wave_connected=true")
+        # Ensure we use an absolute URL by checking if it starts with http/https
+        frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5000')
+        
+        # Make sure the URL is absolute (starts with http:// or https://)
+        if not frontend_url.startswith(('http://', 'https://')):
+            frontend_url = f"https://{frontend_url}"
+        
+        redirect_url = f"{frontend_url}/dashboard?wave_connected=true"
+        print(f"Redirecting to: {redirect_url}")
+        return redirect(redirect_url)
         
     except Exception as e:
         db.session.rollback()
