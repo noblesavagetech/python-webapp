@@ -146,7 +146,49 @@ class DataWarehouseService:
                 
                 # Handle total as an object with value and currency
                 total_obj = node.get('total', {})
-                total_value = total_obj.get('value') if isinstance(total_obj, dict) else total_obj
+                print(f"DEBUG: total_obj = {total_obj}, type = {type(total_obj)}")
+                
+                if isinstance(total_obj, dict):
+                    total_value = total_obj.get('value')
+                    print(f"DEBUG: total_value from dict = {total_value}, type = {type(total_value)}")
+                else:
+                    total_value = total_obj
+                    print(f"DEBUG: total_value direct = {total_value}, type = {type(total_value)}")
+                
+                # Convert total to float if it's a string or int
+                if isinstance(total_value, (str, int)):
+                    try:
+                        total_value = float(total_value)
+                    except (ValueError, TypeError) as e:
+                        print(f"DEBUG: Failed to convert total_value {total_value} to float: {e}")
+                        total_value = 0.0
+                elif total_value is None:
+                    total_value = 0.0
+                
+                print(f"DEBUG: final total_value = {total_value}, type = {type(total_value)}")
+                
+                # Parse dates
+                created_at = node.get('createdAt')
+                due_date = node.get('dueDate')
+                
+                print(f"DEBUG: created_at = {created_at}, due_date = {due_date}")
+                
+                # Convert ISO date strings to datetime objects if needed
+                if isinstance(created_at, str):
+                    try:
+                        from dateutil import parser
+                        created_at = parser.parse(created_at)
+                    except Exception as e:
+                        print(f"DEBUG: Failed to parse created_at {created_at}: {e}")
+                        created_at = None
+                
+                if isinstance(due_date, str):
+                    try:
+                        from dateutil import parser
+                        due_date = parser.parse(due_date).date()
+                    except Exception as e:
+                        print(f"DEBUG: Failed to parse due_date {due_date}: {e}")
+                        due_date = None
                 
                 invoices.append((
                     node['id'],
@@ -156,8 +198,8 @@ class DataWarehouseService:
                     customer.get('name'),
                     total_value,
                     node.get('status'),
-                    node.get('createdAt'),
-                    node.get('dueDate'),
+                    created_at,
+                    due_date,
                     datetime.utcnow()
                 ))
             
