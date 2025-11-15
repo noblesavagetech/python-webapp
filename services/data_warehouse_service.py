@@ -1,5 +1,6 @@
 import psycopg2
 from psycopg2.extras import execute_values
+import sqlite3
 from datetime import datetime
 
 
@@ -12,7 +13,7 @@ class DataWarehouseService:
     
     def get_connection(self):
         """Get or create database connection"""
-        if not self.connection or self.connection.closed:
+        if not self.connection:
             # Try to use the main app database if DW config is default
             if (self.config.get('DW_HOST') == 'localhost' and 
                 self.config.get('DW_DATABASE') == 'financial_dw'):
@@ -52,8 +53,12 @@ class DataWarehouseService:
     
     def close_connection(self):
         """Close database connection"""
-        if self.connection and not self.connection.closed:
-            self.connection.close()
+        if self.connection:
+            try:
+                self.connection.close()
+            except:
+                pass  # Connection might already be closed
+            self.connection = None
     
     def sync_customers(self, company_id, customers_data):
         """Sync customer data to data warehouse"""
@@ -130,21 +135,41 @@ class DataWarehouseService:
             conn = self.get_connection()
             cursor = conn.cursor()
             
+            # Check if we're using SQLite
+            is_sqlite = isinstance(conn, sqlite3.Connection) if 'sqlite3' in str(type(conn)) else False
+            debug_info.append(f"Using database type: {'SQLite' if is_sqlite else 'PostgreSQL'}")
+            
             # Create table if not exists
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS invoices (
-                    id VARCHAR(255) PRIMARY KEY,
-                    company_id VARCHAR(36) NOT NULL,
-                    invoice_number VARCHAR(100),
-                    customer_id VARCHAR(255),
-                    customer_name VARCHAR(255),
-                    total DECIMAL(15, 2),
-                    status VARCHAR(50),
-                    created_at TIMESTAMP,
-                    due_date DATE,
-                    synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
+            if is_sqlite:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS invoices (
+                        id TEXT PRIMARY KEY,
+                        company_id TEXT NOT NULL,
+                        invoice_number TEXT,
+                        customer_id TEXT,
+                        customer_name TEXT,
+                        total REAL,
+                        status TEXT,
+                        created_at TEXT,
+                        due_date TEXT,
+                        synced_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS invoices (
+                        id VARCHAR(255) PRIMARY KEY,
+                        company_id VARCHAR(36) NOT NULL,
+                        invoice_number VARCHAR(100),
+                        customer_id VARCHAR(255),
+                        customer_name VARCHAR(255),
+                        total DECIMAL(15, 2),
+                        status VARCHAR(50),
+                        created_at TIMESTAMP,
+                        due_date DATE,
+                        synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
             
             # Prepare data for insertion
             invoices = []
@@ -181,22 +206,24 @@ class DataWarehouseService:
                 
                 debug_info.append(f"created_at = {created_at}, due_date = {due_date}")
                 
-                # Convert ISO date strings to datetime objects if needed
-                if isinstance(created_at, str):
-                    try:
-                        from dateutil import parser
-                        created_at = parser.parse(created_at)
-                    except Exception as e:
-                        debug_info.append(f"Failed to parse created_at {created_at}: {e}")
-                        created_at = None
+                # Convert dates to strings for SQLite compatibility
+                if created_at:
+                    if hasattr(created_at, 'isoformat'):
+                        created_at = created_at.isoformat()
+                    elif isinstance(created_at, str):
+                        pass  # Already a string
+                    else:
+                        created_at = str(created_at)
                 
-                if isinstance(due_date, str):
-                    try:
-                        from dateutil import parser
-                        due_date = parser.parse(due_date).date()
-                    except Exception as e:
-                        debug_info.append(f"Failed to parse due_date {due_date}: {e}")
-                        due_date = None
+                if due_date:
+                    if hasattr(due_date, 'isoformat'):
+                        due_date = due_date.isoformat()
+                    elif hasattr(due_date, 'strftime'):
+                        due_date = due_date.strftime('%Y-%m-%d')
+                    elif isinstance(due_date, str):
+                        pass  # Already a string
+                    else:
+                        due_date = str(due_date)
                 
                 invoices.append((
                     node['id'],
@@ -208,31 +235,40 @@ class DataWarehouseService:
                     node.get('status'),
                     created_at,
                     due_date,
-                    datetime.utcnow()
+                    datetime.utcnow().isoformat()
                 ))
             
             debug_info.append(f"Prepared {len(invoices)} invoices for insertion")
             
-            # Upsert invoices
+            # Insert data
             if invoices:
-                debug_info.append("Executing bulk insert...")
-                execute_values(
-                    cursor,
-                    """
-                    INSERT INTO invoices (id, company_id, invoice_number, customer_id, customer_name, 
-                                        total, status, created_at, due_date, synced_at)
-                    VALUES %s
-                    ON CONFLICT (id) DO UPDATE SET
-                        invoice_number = EXCLUDED.invoice_number,
-                        customer_id = EXCLUDED.customer_id,
-                        customer_name = EXCLUDED.customer_name,
-                        total = EXCLUDED.total,
-                        status = EXCLUDED.status,
-                        due_date = EXCLUDED.due_date,
-                        synced_at = EXCLUDED.synced_at
-                    """,
-                    invoices
-                )
+                if is_sqlite:
+                    debug_info.append("Using SQLite insertion...")
+                    # Use SQLite-compatible insertion
+                    cursor.executemany("""
+                        INSERT OR REPLACE INTO invoices 
+                        (id, company_id, invoice_number, customer_id, customer_name, total, status, created_at, due_date, synced_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, invoices)
+                else:
+                    debug_info.append("Using PostgreSQL insertion...")
+                    execute_values(
+                        cursor,
+                        """
+                        INSERT INTO invoices (id, company_id, invoice_number, customer_id, customer_name, 
+                                            total, status, created_at, due_date, synced_at)
+                        VALUES %s
+                        ON CONFLICT (id) DO UPDATE SET
+                            invoice_number = EXCLUDED.invoice_number,
+                            customer_id = EXCLUDED.customer_id,
+                            customer_name = EXCLUDED.customer_name,
+                            total = EXCLUDED.total,
+                            status = EXCLUDED.status,
+                            due_date = EXCLUDED.due_date,
+                            synced_at = EXCLUDED.synced_at
+                        """,
+                        invoices
+                    )
                 debug_info.append("Bulk insert completed")
             
             conn.commit()
@@ -244,7 +280,10 @@ class DataWarehouseService:
             import traceback
             debug_info.append(traceback.format_exc())
             if conn:
-                conn.rollback()
+                try:
+                    conn.rollback()
+                except:
+                    pass
             return False, debug_info
     
     def get_company_metrics(self, company_id):
