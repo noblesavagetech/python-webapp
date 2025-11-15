@@ -12,6 +12,28 @@ from services.wave_service import WaveService
 wave_bp = Blueprint('wave_bp', __name__)
 
 
+@wave_bp.route('/status', methods=['GET'])
+@jwt_required()
+def wave_status():
+    """Check if a company has a valid Wave token"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or not user.company_id:
+        return jsonify({'connected': False, 'error': 'No company found'}), 200
+    
+    wave_token = WaveToken.query.filter_by(company_id=user.company_id).first()
+    
+    if not wave_token:
+        return jsonify({'connected': False}), 200
+    
+    return jsonify({
+        'connected': True,
+        'expires_at': wave_token.expires_at.isoformat() if wave_token.expires_at else None,
+        'scope': wave_token.scope
+    }), 200
+
+
 @wave_bp.route('/authorize', methods=['GET'])
 @jwt_required()
 def authorize():
@@ -175,10 +197,12 @@ def callback():
         
         db.session.commit()
         
-        # Redirect to the frontend dashboard with a success indicator
-        frontend_url = current_app.config.get('FRONTEND_URL', '/')
-        print(f"Redirecting to frontend: {frontend_url}/dashboard?wave_connected=true")
-        return redirect(f"{frontend_url}/dashboard?wave_connected=true")
+        # Redirect to the dashboard with a success indicator
+        # Use the Railway app URL, not a separate frontend URL
+        railway_url = current_app.config.get('RAILWAY_STATIC_URL') or \
+                     current_app.config.get('FRONTEND_URL', 'http://localhost:5000')
+        print(f"Redirecting to: {railway_url}/dashboard?wave_connected=true")
+        return redirect(f"{railway_url}/dashboard?wave_connected=true")
         
     except Exception as e:
         db.session.rollback()
