@@ -115,23 +115,19 @@ class WaveService:
     def get_customers(self, company_id, business_id):
         """Get customers for a business"""
         query = """
-        query {
-            businesses {
-                edges {
-                    node {
-                        customers(page: 1, pageSize: 50) {
-                            pageInfo {
-                                currentPage
-                                totalPages
-                                totalCount
-                            }
-                            edges {
-                                node {
-                                    id
-                                    name
-                                    email
-                                }
-                            }
+        query($businessId: ID!) {
+            business(id: $businessId) {
+                customers(page: 1, pageSize: 50) {
+                    pageInfo {
+                        currentPage
+                        totalPages
+                        totalCount
+                    }
+                    edges {
+                        node {
+                            id
+                            name
+                            email
                         }
                     }
                 }
@@ -139,43 +135,39 @@ class WaveService:
         }
         """
         
-        result = self.make_graphql_request(company_id, query)
-        businesses = result.get('data', {}).get('businesses', {}).get('edges', [])
-        if businesses:
-            return businesses[0]['node'].get('customers', {})
-        return {}
+        variables = {
+            'businessId': business_id
+        }
+        result = self.make_graphql_request(company_id, query, variables)
+        return result.get('data', {}).get('business', {}).get('customers', {})
     
     def get_invoices(self, company_id, business_id):
         """Get invoices for a business"""
         query = """
-        query {
-            businesses {
-                edges {
-                    node {
-                        invoices(page: 1, pageSize: 50) {
-                            pageInfo {
-                                currentPage
-                                totalPages
-                                totalCount
-                            }
-                            edges {
-                                node {
-                                    id
-                                    invoiceNumber
-                                    total {
-                                        value
-                                        currency {
-                                            code
-                                        }
-                                    }
-                                    status
-                                    createdAt
-                                    dueDate
-                                    customer {
-                                        id
-                                        name
-                                    }
+        query($businessId: ID!) {
+            business(id: $businessId) {
+                invoices(page: 1, pageSize: 50) {
+                    pageInfo {
+                        currentPage
+                        totalPages
+                        totalCount
+                    }
+                    edges {
+                        node {
+                            id
+                            invoiceNumber
+                            total {
+                                value
+                                currency {
+                                    code
                                 }
+                            }
+                            status
+                            createdAt
+                            dueDate
+                            customer {
+                                id
+                                name
                             }
                         }
                     }
@@ -184,11 +176,11 @@ class WaveService:
         }
         """
         
-        result = self.make_graphql_request(company_id, query)
-        businesses = result.get('data', {}).get('businesses', {}).get('edges', [])
-        if businesses:
-            return businesses[0]['node'].get('invoices', {})
-        return {}
+        variables = {
+            'businessId': business_id
+        }
+        result = self.make_graphql_request(company_id, query, variables)
+        return result.get('data', {}).get('business', {}).get('invoices', {})
     
     def sync_company_data(self, company_id):
         """Sync all Wave data for a company to data warehouse"""
