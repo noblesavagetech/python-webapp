@@ -29,8 +29,11 @@ def wave_status():
     
     return jsonify({
         'connected': True,
-        'expires_at': wave_token.expires_at.isoformat() if wave_token.expires_at else None,
-        'scope': wave_token.scope
+        'token': {
+            'expires_at': wave_token.expires_at.isoformat() if wave_token.expires_at else None,
+            'scope': wave_token.scope,
+            'wave_business_id': wave_token.wave_business_id if hasattr(wave_token, 'wave_business_id') else None
+        }
     }), 200
 
 
