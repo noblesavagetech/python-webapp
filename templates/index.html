@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Python Flask Web App{% endblock %}
+
+{% block content %}
+<div class="container">
+    <section class="hero">
+        <h1>Welcome to Python Flask Web App</h1>
+        <p class="hero-subtitle">A modern web application built with Flask</p>
+        <div class="hero-buttons">
+            <a href="/about" class="btn btn-primary">Learn More</a>
+            <a href="/contact" class="btn btn-secondary">Get in Touch</a>
+        </div>
+    </section>
+
+    <section class="features">
+        <h2>Features</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🚀</div>
+                <h3>Fast & Lightweight</h3>
+                <p>Built with Flask, one of the most efficient Python web frameworks</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎨</div>
+                <h3>Modern Design</h3>
+                <p>Clean and responsive interface that works on all devices</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Dynamic Content</h3>
+                <p>Interactive features powered by JavaScript and API endpoints</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="demo-section">
+        <h2>Live Data Demo</h2>
+        <button id="loadDataBtn" class="btn btn-primary">Load Data from API</button>
+        <div id="dataDisplay" class="data-display"></div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loadDataBtn = document.getElementById('loadDataBtn');
+    const dataDisplay = document.getElementById('dataDisplay');
+
+    loadDataBtn.addEventListener('click', async function() {
+        try {
+            loadDataBtn.textContent = 'Loading...';
+            loadDataBtn.disabled = true;
+
+            const response = await fetch('/api/data');
+            const data = await response.json();
+
+            let html = '<div class="data-grid">';
+            data.items.forEach(item => {
+                html += `
+                    <div class="data-card">
+                        <h4>${item.name}</h4>
+                        <p>${item.description}</p>
+                        <small>ID: ${item.id}</small>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            dataDisplay.innerHTML = html;
+        } catch (error) {
+            dataDisplay.innerHTML = '<p class="error">Error loading data</p>';
+        } finally {
+            loadDataBtn.textContent = 'Reload Data';
+            loadDataBtn.disabled = false;
+        }
+    });
+});
+</script>
+{% endblock %}
