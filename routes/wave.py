@@ -70,54 +70,83 @@ def callback():
             print(f"ERROR: Invalid state. Company with ID '{state}' not found.")
             return jsonify({'error': 'Invalid state: Company not found'}), 400
 
-        # Use requests-oauthlib to robustly handle the token exchange
-        oauth = OAuth2Session(
-            client_id=current_app.config['WAVE_CLIENT_ID'],
-            redirect_uri=current_app.config['WAVE_REDIRECT_URI']
-        )
+        # Make a direct HTTP request to Wave's token endpoint with full visibility
+        import requests
         
         token_url = current_app.config['WAVE_TOKEN_URL']
+        
+        # Prepare the token exchange request data
+        token_data = {
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': current_app.config['WAVE_REDIRECT_URI'],
+            'client_id': current_app.config['WAVE_CLIENT_ID'],
+            'client_secret': current_app.config['WAVE_CLIENT_SECRET']
+        }
+        
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+        }
+        
         print("--- Initiating Wave Token Exchange ---")
-        print(f"  - Endpoint URL: {token_url}")
-        print(f"  - Redirect URI: {current_app.config['WAVE_REDIRECT_URI']}")
-        print(f"  - Client ID: {current_app.config['WAVE_CLIENT_ID']}")
+        print(f"  - Token URL: {token_url}")
+        print(f"  - Grant Type: authorization_code")
+        print(f"  - Redirect URI: {token_data['redirect_uri']}")
+        print(f"  - Client ID: {token_data['client_id'][:10]}...")
+        print(f"  - Code: {code[:20]}...")
 
         try:
-            # fetch_token handles the complexities of the token exchange,
-            # including sending credentials in the request body as required.
-            token_response = oauth.fetch_token(
-                token_url=token_url,
-                code=code,
-                client_secret=current_app.config['WAVE_CLIENT_SECRET'],
-                include_client_id=True
+            # Make the actual HTTP POST request
+            response = requests.post(
+                token_url,
+                data=token_data,
+                headers=headers,
+                timeout=10
             )
+            
+            print(f"  - Response Status: {response.status_code}")
+            print(f"  - Response Headers: {dict(response.headers)}")
+            print(f"  - Response Body: {response.text}")
+            
+            # If the response is not successful, return detailed error to browser
+            if response.status_code != 200:
+                error_details = {
+                    'error': 'Wave token endpoint returned an error',
+                    'status_code': response.status_code,
+                    'headers': dict(response.headers),
+                    'body': response.text,
+                    'request_data': {
+                        'token_url': token_url,
+                        'grant_type': token_data['grant_type'],
+                        'redirect_uri': token_data['redirect_uri'],
+                        'client_id_prefix': token_data['client_id'][:10],
+                        'code_prefix': code[:20]
+                    }
+                }
+                return jsonify(error_details), 500
+            
+            # Parse the successful response
+            token_response = response.json()
             print("SUCCESS: Wave token exchange completed.")
 
-        except Exception as e:
-            print("--- ERROR: Token Exchange Request Failed ---")
-            print(f"  - Exception Type: {type(e).__name__}")
-            print(f"  - Exception Details: {e}")
-
-            # Create a detailed error response to return to the browser for debugging
+        except requests.exceptions.RequestException as e:
+            print("--- ERROR: HTTP Request Failed ---")
+            print(f"  - Exception: {e}")
+            
             error_details = {
-                'error': 'Failed to exchange token using OAuth2Session.',
+                'error': 'HTTP request to Wave failed',
                 'exception_type': type(e).__name__,
-                'exception_details': str(e),
+                'exception_details': str(e)
             }
-
-            # If the exception has response details from Wave, include them.
-            # This is the crucial part for debugging.
+            
             if hasattr(e, 'response') and e.response is not None:
-                print(f"  - Response Status Code: {e.response.status_code}")
-                print(f"  - Response Headers: {dict(e.response.headers)}")
-                print(f"  - Response Body: {e.response.text}")
                 error_details['wave_response'] = {
                     'status_code': e.response.status_code,
                     'headers': dict(e.response.headers),
                     'body': e.response.text
                 }
             
-            # Return the detailed error as a JSON response to the browser
             return jsonify(error_details), 500
         
         # Calculate token expiration
