@@ -265,14 +265,24 @@ def sync_wave_data():
         
         # Use WaveService to sync data
         wave_service = WaveService(current_app.config)
-        success = wave_service.sync_company_data(user.company_id)
         
-        if success:
-            return jsonify({'message': 'Data sync initiated successfully'}), 200
-        else:
-            return jsonify({'error': 'Failed to sync data'}), 500
+        try:
+            success = wave_service.sync_company_data(user.company_id)
+            
+            if success:
+                return jsonify({'message': 'Data sync completed successfully'}), 200
+            else:
+                return jsonify({'error': 'Failed to sync data - check server logs for details'}), 500
+        except Exception as sync_error:
+            print(f"ERROR: Wave data sync failed: {sync_error}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'Sync failed: {str(sync_error)}'}), 500
         
     except Exception as e:
+        print(f"ERROR: Wave sync endpoint error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 

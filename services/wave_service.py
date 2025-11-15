@@ -173,34 +173,56 @@ class WaveService:
     def sync_company_data(self, company_id):
         """Sync all Wave data for a company to data warehouse"""
         try:
+            print(f"Starting Wave data sync for company {company_id}")
+            
             # Get business info first
+            print("Fetching business info from Wave...")
             businesses = self.get_business_info(company_id)
             
             if not businesses or not businesses.get('edges'):
-                return False
+                print("ERROR: No businesses found in Wave account")
+                raise Exception("No businesses found in Wave account")
             
             # Use first business (or implement logic to select specific business)
             business_node = businesses['edges'][0]['node']
             business_id = business_node['id']
+            business_name = business_node.get('name', 'Unknown')
+            print(f"Using business: {business_name} (ID: {business_id})")
             
             # Update Wave token with business_id
             wave_token = WaveToken.query.filter_by(company_id=company_id).first()
             if wave_token:
                 wave_token.wave_business_id = business_id
                 db.session.commit()
+                print("Updated wave_business_id in token")
             
             # Sync customers
+            print("Fetching customers from Wave...")
             customers = self.get_customers(company_id, business_id)
-            self.dw_service.sync_customers(company_id, customers)
+            customer_count = len(customers.get('edges', []))
+            print(f"Found {customer_count} customers")
+            
+            print("Syncing customers to data warehouse...")
+            if not self.dw_service.sync_customers(company_id, customers):
+                raise Exception("Failed to sync customers to data warehouse")
+            print("Customers synced successfully")
             
             # Sync invoices
+            print("Fetching invoices from Wave...")
             invoices = self.get_invoices(company_id, business_id)
-            self.dw_service.sync_invoices(company_id, invoices)
+            invoice_count = len(invoices.get('edges', []))
+            print(f"Found {invoice_count} invoices")
             
-            # Add more data types as needed (products, expenses, etc.)
+            print("Syncing invoices to data warehouse...")
+            if not self.dw_service.sync_invoices(company_id, invoices):
+                raise Exception("Failed to sync invoices to data warehouse")
+            print("Invoices synced successfully")
             
+            print(f"Wave data sync completed: {customer_count} customers, {invoice_count} invoices")
             return True
             
         except Exception as e:
-            print(f"Error syncing company data: {e}")
-            return False
+            print(f"ERROR: Wave data sync failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
