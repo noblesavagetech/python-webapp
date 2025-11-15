@@ -19,8 +19,8 @@ class Config:
     # Dynamic redirect URI based on Railway domain
     railway_domain = os.getenv('RAILWAY_STATIC_URL', 'http://localhost:5000')
     WAVE_REDIRECT_URI = os.getenv('WAVE_REDIRECT_URI', f'{railway_domain}/api/wave/callback')
-    WAVE_AUTHORIZATION_URL = os.getenv('WAVE_AUTHORIZATION_URL', 'https://api.waveapps.com/oauth2/authorize')
-    WAVE_TOKEN_URL = os.getenv('WAVE_TOKEN_URL', 'https://api.waveapps.com/oauth2/token')
+    WAVE_AUTHORIZATION_URL = os.getenv('WAVE_AUTHORIZATION_URL', 'https://api.waveapps.com/oauth2/authorize/')
+    WAVE_TOKEN_URL = os.getenv('WAVE_TOKEN_URL', 'https://api.waveapps.com/oauth2/token/')
     WAVE_API_URL = os.getenv('WAVE_API_URL', 'https://gql.waveapps.com/graphql/public')
     
     # Data Warehouse - Use same DB as main app for simplicity
