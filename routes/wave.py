@@ -68,22 +68,17 @@ def callback():
         if not company:
             return jsonify({'error': 'Invalid state'}), 400
         
-        # Exchange code for token using Basic Auth
-        import base64
-        
-        # Wave expects Basic Auth with client credentials
-        auth_string = f"{current_app.config['WAVE_CLIENT_ID']}:{current_app.config['WAVE_CLIENT_SECRET']}"
-        auth_bytes = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
-        
+        # Exchange code for token - Wave requires client credentials in body
         headers = {
-            'Authorization': f'Basic {auth_bytes}',
             'Content-Type': 'application/x-www-form-urlencoded'
         }
         
         token_data = {
             'grant_type': 'authorization_code',
             'code': code,
-            'redirect_uri': current_app.config['WAVE_REDIRECT_URI']
+            'redirect_uri': current_app.config['WAVE_REDIRECT_URI'],
+            'client_id': current_app.config['WAVE_CLIENT_ID'],
+            'client_secret': current_app.config['WAVE_CLIENT_SECRET']
         }
         
         response = requests.post(
