@@ -82,8 +82,15 @@ def callback():
             data=token_data
         )
         
+        print(f"Wave token exchange response status: {response.status_code}")
+        print(f"Wave token exchange response: {response.text}")
+        
         if response.status_code != 200:
-            return jsonify({'error': 'Failed to exchange token'}), 400
+            return jsonify({
+                'error': 'Failed to exchange token',
+                'status': response.status_code,
+                'details': response.text
+            }), 400
         
         token_response = response.json()
         
