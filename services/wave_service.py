@@ -179,10 +179,202 @@ class WaveService:
         variables = {
             'businessId': business_id
         }
+    def get_products(self, company_id, business_id):
+        """Get products/services for a business"""
+        query = """
+        query($businessId: ID!) {
+            business(id: $businessId) {
+                products(page: 1, pageSize: 50) {
+                    pageInfo {
+                        currentPage
+                        totalPages
+                        totalCount
+                    }
+                    edges {
+                        node {
+                            id
+                            name
+                            description
+                            unitPrice {
+                                value
+                                currency {
+                                    code
+                                }
+                            }
+                            incomeAccount {
+                                id
+                                name
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        variables = {
+            'businessId': business_id
+        }
         result = self.make_graphql_request(company_id, query, variables)
-        return result.get('data', {}).get('business', {}).get('invoices', {})
-    
-    def sync_company_data(self, company_id):
+        return result.get('data', {}).get('business', {}).get('products', {})
+
+    def get_bills(self, company_id, business_id):
+        """Get bills/expenses for a business"""
+        query = """
+        query($businessId: ID!) {
+            business(id: $businessId) {
+                bills(page: 1, pageSize: 50) {
+                    pageInfo {
+                        currentPage
+                        totalPages
+                        totalCount
+                    }
+                    edges {
+                        node {
+                            id
+                            billNumber
+                            vendor {
+                                id
+                                name
+                            }
+                            total {
+                                value
+                                currency {
+                                    code
+                                }
+                            }
+                            status
+                            dueDate
+                            createdAt
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        variables = {
+            'businessId': business_id
+        }
+        result = self.make_graphql_request(company_id, query, variables)
+        return result.get('data', {}).get('business', {}).get('bills', {})
+
+    def get_accounts(self, company_id, business_id):
+        """Get chart of accounts for a business"""
+        query = """
+        query($businessId: ID!) {
+            business(id: $businessId) {
+                accounts {
+                    edges {
+                        node {
+                            id
+                            name
+                            type
+                            subtype
+                            balance {
+                                value
+                                currency {
+                                    code
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        variables = {
+            'businessId': business_id
+        }
+        result = self.make_graphql_request(company_id, query, variables)
+        return result.get('data', {}).get('business', {}).get('accounts', {})
+
+    def get_payments(self, company_id, business_id):
+        """Get payments received for a business"""
+        query = """
+        query($businessId: ID!) {
+            business(id: $businessId) {
+                payments(page: 1, pageSize: 50) {
+                    pageInfo {
+                        currentPage
+                        totalPages
+                        totalCount
+                    }
+                    edges {
+                        node {
+                            id
+                            amount {
+                                value
+                                currency {
+                                    code
+                                }
+                            }
+                            date
+                            method
+                            invoices {
+                                edges {
+                                    node {
+                                        id
+                                        invoiceNumber
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        variables = {
+            'businessId': business_id
+        }
+        result = self.make_graphql_request(company_id, query, variables)
+        return result.get('data', {}).get('business', {}).get('payments', {})
+
+    def get_vendor_payments(self, company_id, business_id):
+        """Get payments made to vendors for a business"""
+        query = """
+        query($businessId: ID!) {
+            business(id: $businessId) {
+                vendorPayments(page: 1, pageSize: 50) {
+                    pageInfo {
+                        currentPage
+                        totalPages
+                        totalCount
+                    }
+                    edges {
+                        node {
+                            id
+                            amount {
+                                value
+                                currency {
+                                    code
+                                }
+                            }
+                            date
+                            method
+                            bills {
+                                edges {
+                                    node {
+                                        id
+                                        billNumber
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        variables = {
+            'businessId': business_id
+        }
+        result = self.make_graphql_request(company_id, query, variables)
+        return result.get('data', {}).get('business', {}).get('vendorPayments', {})
         """Sync all Wave data for a company to data warehouse"""
         try:
             print(f"Starting Wave data sync for company {company_id}")
@@ -234,7 +426,33 @@ class WaveService:
                 raise Exception(error_msg)
             print("Invoices synced successfully")
             
-            print(f"Wave data sync completed: {customer_count} customers, {invoice_count} invoices")
+            # Sync products
+            print("Fetching products from Wave...")
+            products = self.get_products(company_id, business_id)
+            product_count = len(products.get('edges', []))
+            print(f"Found {product_count} products")
+            
+            print("Syncing products to data warehouse...")
+            success, debug_info = self.dw_service.sync_products(company_id, products)
+            if not success:
+                error_msg = f"Failed to sync products to data warehouse. Debug info: {'; '.join(debug_info)}"
+                raise Exception(error_msg)
+            print("Products synced successfully")
+            
+            # Sync bills/expenses
+            print("Fetching bills/expenses from Wave...")
+            bills = self.get_bills(company_id, business_id)
+            bill_count = len(bills.get('edges', []))
+            print(f"Found {bill_count} bills")
+            
+            print("Syncing bills to data warehouse...")
+            success, debug_info = self.dw_service.sync_bills(company_id, bills)
+            if not success:
+                error_msg = f"Failed to sync bills to data warehouse. Debug info: {'; '.join(debug_info)}"
+                raise Exception(error_msg)
+            print("Bills synced successfully")
+            
+            print(f"Wave data sync completed: {customer_count} customers, {invoice_count} invoices, {product_count} products, {bill_count} bills")
             return True
             
         except Exception as e:

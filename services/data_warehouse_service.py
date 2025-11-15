@@ -317,3 +317,223 @@ class DataWarehouseService:
         except Exception as e:
             print(f"Error getting company metrics: {e}")
             return None
+
+    def sync_products(self, company_id, products_data):
+        """Sync product data to data warehouse"""
+        conn = None
+        debug_info = []
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # Check if we're using SQLite
+            is_sqlite = isinstance(conn, sqlite3.Connection) if 'sqlite3' in str(type(conn)) else False
+            
+            # Create table if not exists
+            if is_sqlite:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS products (
+                        id TEXT PRIMARY KEY,
+                        company_id TEXT NOT NULL,
+                        name TEXT,
+                        description TEXT,
+                        unit_price REAL,
+                        income_account_id TEXT,
+                        income_account_name TEXT,
+                        synced_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS products (
+                        id VARCHAR(255) PRIMARY KEY,
+                        company_id VARCHAR(36) NOT NULL,
+                        name VARCHAR(255),
+                        description TEXT,
+                        unit_price DECIMAL(15, 2),
+                        income_account_id VARCHAR(255),
+                        income_account_name VARCHAR(255),
+                        synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+            
+            # Prepare data for insertion
+            products = []
+            for edge in products_data.get('edges', []):
+                node = edge['node']
+                unit_price_obj = node.get('unitPrice', {})
+                income_account = node.get('incomeAccount', {})
+                
+                # Handle unit price
+                if isinstance(unit_price_obj, dict):
+                    unit_price = unit_price_obj.get('value', 0)
+                else:
+                    unit_price = unit_price_obj or 0
+                
+                products.append((
+                    node['id'],
+                    company_id,
+                    node.get('name'),
+                    node.get('description'),
+                    float(unit_price) if unit_price else 0.0,
+                    income_account.get('id'),
+                    income_account.get('name'),
+                    datetime.utcnow().isoformat() if is_sqlite else datetime.utcnow()
+                ))
+            
+            # Insert data
+            if products:
+                if is_sqlite:
+                    cursor.executemany("""
+                        INSERT OR REPLACE INTO products 
+                        (id, company_id, name, description, unit_price, income_account_id, income_account_name, synced_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, products)
+                else:
+                    execute_values(
+                        cursor,
+                        """
+                        INSERT INTO products (id, company_id, name, description, unit_price, income_account_id, income_account_name, synced_at)
+                        VALUES %s
+                        ON CONFLICT (id) DO UPDATE SET
+                            name = EXCLUDED.name,
+                            description = EXCLUDED.description,
+                            unit_price = EXCLUDED.unit_price,
+                            income_account_id = EXCLUDED.income_account_id,
+                            income_account_name = EXCLUDED.income_account_name,
+                            synced_at = EXCLUDED.synced_at
+                        """,
+                        products
+                    )
+            
+            conn.commit()
+            cursor.close()
+            
+            return True, debug_info
+        except Exception as e:
+            debug_info.append(f"Error syncing products: {e}")
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            return False, debug_info
+
+    def sync_bills(self, company_id, bills_data):
+        """Sync bill/expense data to data warehouse"""
+        conn = None
+        debug_info = []
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # Check if we're using SQLite
+            is_sqlite = isinstance(conn, sqlite3.Connection) if 'sqlite3' in str(type(conn)) else False
+            
+            # Create table if not exists
+            if is_sqlite:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS bills (
+                        id TEXT PRIMARY KEY,
+                        company_id TEXT NOT NULL,
+                        bill_number TEXT,
+                        vendor_id TEXT,
+                        vendor_name TEXT,
+                        total REAL,
+                        status TEXT,
+                        due_date TEXT,
+                        created_at TEXT,
+                        synced_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS bills (
+                        id VARCHAR(255) PRIMARY KEY,
+                        company_id VARCHAR(36) NOT NULL,
+                        bill_number VARCHAR(100),
+                        vendor_id VARCHAR(255),
+                        vendor_name VARCHAR(255),
+                        total DECIMAL(15, 2),
+                        status VARCHAR(50),
+                        due_date DATE,
+                        created_at TIMESTAMP,
+                        synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+            
+            # Prepare data for insertion
+            bills = []
+            for edge in bills_data.get('edges', []):
+                node = edge['node']
+                vendor = node.get('vendor', {})
+                total_obj = node.get('total', {})
+                
+                # Handle total
+                if isinstance(total_obj, dict):
+                    total = total_obj.get('value', 0)
+                else:
+                    total = total_obj or 0
+                
+                # Handle dates
+                created_at = node.get('createdAt')
+                due_date = node.get('dueDate')
+                
+                if created_at and not is_sqlite:
+                    if hasattr(created_at, 'isoformat'):
+                        created_at = created_at.isoformat()
+                if due_date and not is_sqlite:
+                    if hasattr(due_date, 'isoformat'):
+                        due_date = due_date.isoformat()
+                
+                bills.append((
+                    node['id'],
+                    company_id,
+                    node.get('billNumber'),
+                    vendor.get('id'),
+                    vendor.get('name'),
+                    float(total) if total else 0.0,
+                    node.get('status'),
+                    due_date,
+                    created_at,
+                    datetime.utcnow().isoformat() if is_sqlite else datetime.utcnow()
+                ))
+            
+            # Insert data
+            if bills:
+                if is_sqlite:
+                    cursor.executemany("""
+                        INSERT OR REPLACE INTO bills 
+                        (id, company_id, bill_number, vendor_id, vendor_name, total, status, due_date, created_at, synced_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, bills)
+                else:
+                    execute_values(
+                        cursor,
+                        """
+                        INSERT INTO bills (id, company_id, bill_number, vendor_id, vendor_name, total, status, due_date, created_at, synced_at)
+                        VALUES %s
+                        ON CONFLICT (id) DO UPDATE SET
+                            bill_number = EXCLUDED.bill_number,
+                            vendor_id = EXCLUDED.vendor_id,
+                            vendor_name = EXCLUDED.vendor_name,
+                            total = EXCLUDED.total,
+                            status = EXCLUDED.status,
+                            due_date = EXCLUDED.due_date,
+                            synced_at = EXCLUDED.synced_at
+                        """,
+                        bills
+                    )
+            
+            conn.commit()
+            cursor.close()
+            
+            return True, debug_info
+        except Exception as e:
+            debug_info.append(f"Error syncing bills: {e}")
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            return False, debug_info
