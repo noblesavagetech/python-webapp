@@ -68,36 +68,26 @@ def callback():
         if not company:
             return jsonify({'error': 'Invalid state'}), 400
         
-        # Exchange code for token - Wave requires client credentials in body
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-        
-        token_data = {
-            'grant_type': 'authorization_code',
-            'code': code,
-            'redirect_uri': current_app.config['WAVE_REDIRECT_URI'],
-            'client_id': current_app.config['WAVE_CLIENT_ID'],
-            'client_secret': current_app.config['WAVE_CLIENT_SECRET']
-        }
-        
-        response = requests.post(
-            current_app.config['WAVE_TOKEN_URL'],
-            data=token_data,
-            headers=headers
+        # Exchange code for token using requests-oauthlib
+        oauth = OAuth2Session(
+            client_id=current_app.config['WAVE_CLIENT_ID'],
+            redirect_uri=current_app.config['WAVE_REDIRECT_URI']
         )
         
-        print(f"Wave token exchange response status: {response.status_code}")
-        print(f"Wave token exchange response: {response.text}")
-        
-        if response.status_code != 200:
+        try:
+            token_response = oauth.fetch_token(
+                token_url=current_app.config['WAVE_TOKEN_URL'],
+                code=code,
+                client_secret=current_app.config['WAVE_CLIENT_SECRET'],
+                include_client_id=True
+            )
+            print(f"Wave token exchange successful.")
+        except Exception as e:
+            print(f"Error fetching token with requests-oauthlib: {e}")
             return jsonify({
-                'error': 'Failed to exchange token',
-                'status': response.status_code,
-                'details': response.text
+                'error': 'Failed to exchange token using OAuth2Session',
+                'details': str(e)
             }), 400
-        
-        token_response = response.json()
         
         # Calculate expiration
         expires_in = token_response.get('expires_in', 3600)
@@ -124,7 +114,7 @@ def callback():
         db.session.commit()
         
         # Redirect to dashboard with success message
-        return redirect('/dashboard?wave_connected=true')
+        return redirect(f"{current_app.config['FRONTEND_URL']}/dashboard?wave_connected=true")
         
     except Exception as e:
         db.session.rollback()
