@@ -58,6 +58,7 @@ class DataWarehouseService:
     def sync_customers(self, company_id, customers_data):
         """Sync customer data to data warehouse"""
         conn = None
+        debug_info = []
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
@@ -89,8 +90,11 @@ class DataWarehouseService:
                     datetime.utcnow()
                 ))
             
+            debug_info.append(f"Prepared {len(customers)} customers for insertion")
+            
             # Upsert customers
             if customers:
+                debug_info.append("Executing bulk insert...")
                 execute_values(
                     cursor,
                     """
@@ -104,20 +108,24 @@ class DataWarehouseService:
                     """,
                     customers
                 )
+                debug_info.append("Bulk insert completed")
             
             conn.commit()
             cursor.close()
             
-            return True
+            return True, debug_info
         except Exception as e:
-            print(f"Error syncing customers: {e}")
+            debug_info.append(f"Error syncing customers: {e}")
+            import traceback
+            debug_info.append(traceback.format_exc())
             if conn:
                 conn.rollback()
-            return False
+            return False, debug_info
     
     def sync_invoices(self, company_id, invoices_data):
         """Sync invoice data to data warehouse"""
         conn = None
+        debug_info = []
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
@@ -146,32 +154,32 @@ class DataWarehouseService:
                 
                 # Handle total as an object with value and currency
                 total_obj = node.get('total', {})
-                print(f"DEBUG: total_obj = {total_obj}, type = {type(total_obj)}")
+                debug_info.append(f"total_obj = {total_obj}, type = {type(total_obj)}")
                 
                 if isinstance(total_obj, dict):
                     total_value = total_obj.get('value')
-                    print(f"DEBUG: total_value from dict = {total_value}, type = {type(total_value)}")
+                    debug_info.append(f"total_value from dict = {total_value}, type = {type(total_value)}")
                 else:
                     total_value = total_obj
-                    print(f"DEBUG: total_value direct = {total_value}, type = {type(total_value)}")
+                    debug_info.append(f"total_value direct = {total_value}, type = {type(total_value)}")
                 
                 # Convert total to float if it's a string or int
                 if isinstance(total_value, (str, int)):
                     try:
                         total_value = float(total_value)
                     except (ValueError, TypeError) as e:
-                        print(f"DEBUG: Failed to convert total_value {total_value} to float: {e}")
+                        debug_info.append(f"Failed to convert total_value {total_value} to float: {e}")
                         total_value = 0.0
                 elif total_value is None:
                     total_value = 0.0
                 
-                print(f"DEBUG: final total_value = {total_value}, type = {type(total_value)}")
+                debug_info.append(f"final total_value = {total_value}, type = {type(total_value)}")
                 
                 # Parse dates
                 created_at = node.get('createdAt')
                 due_date = node.get('dueDate')
                 
-                print(f"DEBUG: created_at = {created_at}, due_date = {due_date}")
+                debug_info.append(f"created_at = {created_at}, due_date = {due_date}")
                 
                 # Convert ISO date strings to datetime objects if needed
                 if isinstance(created_at, str):
@@ -179,7 +187,7 @@ class DataWarehouseService:
                         from dateutil import parser
                         created_at = parser.parse(created_at)
                     except Exception as e:
-                        print(f"DEBUG: Failed to parse created_at {created_at}: {e}")
+                        debug_info.append(f"Failed to parse created_at {created_at}: {e}")
                         created_at = None
                 
                 if isinstance(due_date, str):
@@ -187,7 +195,7 @@ class DataWarehouseService:
                         from dateutil import parser
                         due_date = parser.parse(due_date).date()
                     except Exception as e:
-                        print(f"DEBUG: Failed to parse due_date {due_date}: {e}")
+                        debug_info.append(f"Failed to parse due_date {due_date}: {e}")
                         due_date = None
                 
                 invoices.append((
@@ -203,8 +211,11 @@ class DataWarehouseService:
                     datetime.utcnow()
                 ))
             
+            debug_info.append(f"Prepared {len(invoices)} invoices for insertion")
+            
             # Upsert invoices
             if invoices:
+                debug_info.append("Executing bulk insert...")
                 execute_values(
                     cursor,
                     """
@@ -222,18 +233,19 @@ class DataWarehouseService:
                     """,
                     invoices
                 )
+                debug_info.append("Bulk insert completed")
             
             conn.commit()
             cursor.close()
             
-            return True
+            return True, debug_info
         except Exception as e:
-            print(f"Error syncing invoices: {e}")
+            debug_info.append(f"Error syncing invoices: {e}")
             import traceback
-            traceback.print_exc()
+            debug_info.append(traceback.format_exc())
             if conn:
                 conn.rollback()
-            return False
+            return False, debug_info
     
     def get_company_metrics(self, company_id):
         """Get aggregated financial metrics for a company"""

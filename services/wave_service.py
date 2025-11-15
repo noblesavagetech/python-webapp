@@ -215,8 +215,10 @@ class WaveService:
             print(f"Found {customer_count} customers")
             
             print("Syncing customers to data warehouse...")
-            if not self.dw_service.sync_customers(company_id, customers):
-                raise Exception("Failed to sync customers to data warehouse")
+            success, debug_info = self.dw_service.sync_customers(company_id, customers)
+            if not success:
+                error_msg = f"Failed to sync customers to data warehouse. Debug info: {'; '.join(debug_info)}"
+                raise Exception(error_msg)
             print("Customers synced successfully")
             
             # Sync invoices
@@ -226,8 +228,10 @@ class WaveService:
             print(f"Found {invoice_count} invoices")
             
             print("Syncing invoices to data warehouse...")
-            if not self.dw_service.sync_invoices(company_id, invoices):
-                raise Exception("Failed to sync invoices to data warehouse")
+            success, debug_info = self.dw_service.sync_invoices(company_id, invoices)
+            if not success:
+                error_msg = f"Failed to sync invoices to data warehouse. Debug info: {'; '.join(debug_info)}"
+                raise Exception(error_msg)
             print("Invoices synced successfully")
             
             print(f"Wave data sync completed: {customer_count} customers, {invoice_count} invoices")
