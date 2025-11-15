@@ -99,7 +99,7 @@ class WaveService:
         query {
             user {
                 id
-                businesses(page: 1, pageSize: 1) {
+                businesses {
                     edges {
                         node {
                             id
@@ -120,7 +120,7 @@ class WaveService:
         query = """
         query {
             user {
-                businesses(page: 1, pageSize: 1) {
+                businesses {
                     edges {
                         node {
                             customers(page: 1, pageSize: 50) {
@@ -155,7 +155,7 @@ class WaveService:
         query = """
         query {
             user {
-                businesses(page: 1, pageSize: 1) {
+                businesses {
                     edges {
                         node {
                             invoices(page: 1, pageSize: 50) {
