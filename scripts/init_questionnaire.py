@@ -2,6 +2,12 @@
 """
 Initialize the questionnaire in the database
 """
+import os
+import sys
+
+# Add parent directory to Python path for Railway
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from app import create_app
 from extensions import db
 from models.questionnaire import Questionnaire
