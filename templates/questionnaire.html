@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Questionnaire - BBA Services</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>BBA Services</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="#" id="logoutBtn">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="questionnaire-page">
+        <div class="container">
+            <div class="questionnaire-container">
+                <h1>Financial Health Assessment</h1>
+                <p class="subtitle">Help us understand your business better by answering a few questions</p>
+
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+
+                <form id="questionnaireForm" class="questionnaire-form">
+                    <div id="questionsContainer"></div>
+
+                    <div id="error-message" class="error-message" style="display: none;"></div>
+
+                    <div class="form-actions">
+                        <button type="button" id="prevBtn" class="btn btn-secondary" style="display: none;">Previous</button>
+                        <button type="button" id="nextBtn" class="btn btn-primary">Next</button>
+                        <button type="submit" id="submitBtn" class="btn btn-primary" style="display: none;">Submit</button>
+                    </div>
+                </form>
+
+                <div id="successMessage" class="success-message" style="display: none;">
+                    <h2>✓ Assessment Complete!</h2>
+                    <p>Your Financial Health Score:</p>
+                    <div id="scoreDisplay" class="score-container"></div>
+                    <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/questionnaire.js"></script>
+</body>
+</html>

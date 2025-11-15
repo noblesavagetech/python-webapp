@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - BBA Services</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>BBA Services</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/about">About Us</a></li>
+                <li><a href="/signup">Sign Up</a></li>
+                <li><a href="/login">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="signup-page">
+        <div class="container">
+            <div class="signup-container">
+                <h1>Create Your Account</h1>
+                <p class="subtitle">Start tracking your financial health today</p>
+
+                <form id="signupForm" class="signup-form">
+                    <div class="form-section">
+                        <h3>Company Information</h3>
+                        
+                        <div class="form-group">
+                            <label for="company_name">Company Name *</label>
+                            <input type="text" id="company_name" name="company_name" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Company Email *</label>
+                            <input type="email" id="email" name="email" required>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="industry">Industry</label>
+                                <select id="industry" name="industry">
+                                    <option value="">Select Industry</option>
+                                    <option value="accounting">Accounting & Tax Services</option>
+                                    <option value="advertising">Advertising & Marketing</option>
+                                    <option value="agriculture">Agriculture & Farming</option>
+                                    <option value="architecture">Architecture & Design</option>
+                                    <option value="automotive">Automotive</option>
+                                    <option value="banking">Banking & Financial Services</option>
+                                    <option value="biotechnology">Biotechnology</option>
+                                    <option value="construction">Construction</option>
+                                    <option value="consulting">Consulting</option>
+                                    <option value="education">Education & Training</option>
+                                    <option value="energy">Energy & Utilities</option>
+                                    <option value="engineering">Engineering</option>
+                                    <option value="entertainment">Entertainment & Media</option>
+                                    <option value="environmental">Environmental Services</option>
+                                    <option value="food_beverage">Food & Beverage</option>
+                                    <option value="healthcare">Healthcare & Medical</option>
+                                    <option value="hospitality">Hospitality & Tourism</option>
+                                    <option value="human_resources">Human Resources</option>
+                                    <option value="insurance">Insurance</option>
+                                    <option value="legal">Legal Services</option>
+                                    <option value="logistics">Logistics & Transportation</option>
+                                    <option value="manufacturing">Manufacturing</option>
+                                    <option value="nonprofit">Non-Profit & NGO</option>
+                                    <option value="pharmaceuticals">Pharmaceuticals</option>
+                                    <option value="real_estate">Real Estate</option>
+                                    <option value="retail">Retail & E-commerce</option>
+                                    <option value="security">Security Services</option>
+                                    <option value="software">Software & IT Services</option>
+                                    <option value="sports_fitness">Sports & Fitness</option>
+                                    <option value="technology">Technology & Innovation</option>
+                                    <option value="telecommunications">Telecommunications</option>
+                                    <option value="wholesale">Wholesale & Distribution</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="company_size">Company Size</label>
+                                <select id="company_size" name="company_size">
+                                    <option value="">Select Size</option>
+                                    <option value="small">1-10 employees</option>
+                                    <option value="medium">11-50 employees</option>
+                                    <option value="large">50+ employees</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Your Information</h3>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="first_name">First Name *</label>
+                                <input type="text" id="first_name" name="first_name" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="last_name">Last Name *</label>
+                                <input type="text" id="last_name" name="last_name" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="password">Password *</label>
+                            <input type="password" id="password" name="password" required minlength="8">
+                            <small>Minimum 8 characters</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="confirm_password">Confirm Password *</label>
+                            <input type="password" id="confirm_password" name="confirm_password" required>
+                        </div>
+                    </div>
+
+                    <div id="error-message" class="error-message" style="display: none;"></div>
+
+                    <button type="submit" class="btn btn-primary btn-large">Create Account</button>
+
+                    <p class="form-footer">
+                        Already have an account? <a href="/login">Login here</a>
+                    </p>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2025 BBA Services. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/signup.js"></script>
+</body>
+</html>

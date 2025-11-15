@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - BBA Services</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>BBA Services</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/dashboard">Dashboard</a></li>
+                <li><a href="#" id="logoutBtn">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="dashboard-page" style="padding: 3rem 0; min-height: calc(100vh - 200px);">
+        <div class="container">
+            <h1>Dashboard</h1>
+            
+            <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-top: 2rem;">
+                
+                <!-- Company Info Card -->
+                <div class="dashboard-card" style="background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h2 style="margin-bottom: 1rem; color: var(--primary-color);">Company Information</h2>
+                    <div id="companyInfo">
+                        <p>Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Financial Health Score Card -->
+                <div class="dashboard-card" style="background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h2 style="margin-bottom: 1rem; color: var(--primary-color);">Financial Health Score</h2>
+                    <div id="healthScore" style="text-align: center;">
+                        <p>Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Wave Connection Card -->
+                <div class="dashboard-card" style="background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h2 style="margin-bottom: 1rem; color: var(--primary-color);">Wave Integration</h2>
+                    <div id="waveStatus">
+                        <p>Loading...</p>
+                    </div>
+                    <div id="waveActions" style="margin-top: 1rem;"></div>
+                </div>
+            </div>
+
+            <!-- Questionnaire Section -->
+            <div class="dashboard-section" style="margin-top: 3rem;">
+                <div class="dashboard-card" style="background: white; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h2 style="margin-bottom: 1rem; color: var(--primary-color);">Financial Assessment</h2>
+                    <div id="questionnaireStatus"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2025 BBA Services. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/js/main.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
