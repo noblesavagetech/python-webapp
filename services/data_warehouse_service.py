@@ -57,6 +57,7 @@ class DataWarehouseService:
     
     def sync_customers(self, company_id, customers_data):
         """Sync customer data to data warehouse"""
+        conn = None
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
@@ -116,6 +117,7 @@ class DataWarehouseService:
     
     def sync_invoices(self, company_id, invoices_data):
         """Sync invoice data to data warehouse"""
+        conn = None
         try:
             conn = self.get_connection()
             cursor = conn.cursor()
