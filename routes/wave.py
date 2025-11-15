@@ -1,15 +1,15 @@
+from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, redirect, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from requests_oauthlib import OAuth2Session
+
 from extensions import db
-from models.user import User
 from models.company import Company
+from models.user import User
 from models.wave_token import WaveToken
 from services.wave_service import WaveService
-from datetime import datetime, timedelta
-import requests
 
-wave_bp = Blueprint('wave', __name__)
+wave_bp = Blueprint('wave_bp', __name__)
 
 
 @wave_bp.route('/authorize', methods=['GET'])
@@ -56,50 +56,82 @@ def authorize():
 
 @wave_bp.route('/callback', methods=['GET'])
 def callback():
-    """Handle Wave OAuth callback"""
+    """Handle Wave OAuth callback with robust, detailed token exchange."""
     try:
         code = request.args.get('code')
         state = request.args.get('state')  # This is company_id
         
         if not code or not state:
-            return jsonify({'error': 'Missing code or state'}), 400
+            print("ERROR: Missing code or state in callback.")
+            return jsonify({'error': 'Missing code or state from callback'}), 400
         
         company = Company.query.get(state)
         if not company:
-            return jsonify({'error': 'Invalid state'}), 400
-        
-        # Exchange code for token using requests-oauthlib
+            print(f"ERROR: Invalid state. Company with ID '{state}' not found.")
+            return jsonify({'error': 'Invalid state: Company not found'}), 400
+
+        # Use requests-oauthlib to robustly handle the token exchange
         oauth = OAuth2Session(
             client_id=current_app.config['WAVE_CLIENT_ID'],
             redirect_uri=current_app.config['WAVE_REDIRECT_URI']
         )
         
+        token_url = current_app.config['WAVE_TOKEN_URL']
+        print("--- Initiating Wave Token Exchange ---")
+        print(f"  - Endpoint URL: {token_url}")
+        print(f"  - Redirect URI: {current_app.config['WAVE_REDIRECT_URI']}")
+        print(f"  - Client ID: {current_app.config['WAVE_CLIENT_ID']}")
+
         try:
+            # fetch_token handles the complexities of the token exchange,
+            # including sending credentials in the request body as required.
             token_response = oauth.fetch_token(
-                token_url=current_app.config['WAVE_TOKEN_URL'],
+                token_url=token_url,
                 code=code,
                 client_secret=current_app.config['WAVE_CLIENT_SECRET'],
                 include_client_id=True
             )
-            print(f"Wave token exchange successful.")
+            print("SUCCESS: Wave token exchange completed.")
+
         except Exception as e:
-            print(f"Error fetching token with requests-oauthlib: {e}")
-            return jsonify({
-                'error': 'Failed to exchange token using OAuth2Session',
-                'details': str(e)
-            }), 400
+            print("--- ERROR: Token Exchange Request Failed ---")
+            print(f"  - Exception Type: {type(e).__name__}")
+            print(f"  - Exception Details: {e}")
+
+            # Create a detailed error response to return to the browser for debugging
+            error_details = {
+                'error': 'Failed to exchange token using OAuth2Session.',
+                'exception_type': type(e).__name__,
+                'exception_details': str(e),
+            }
+
+            # If the exception has response details from Wave, include them.
+            # This is the crucial part for debugging.
+            if hasattr(e, 'response') and e.response is not None:
+                print(f"  - Response Status Code: {e.response.status_code}")
+                print(f"  - Response Headers: {dict(e.response.headers)}")
+                print(f"  - Response Body: {e.response.text}")
+                error_details['wave_response'] = {
+                    'status_code': e.response.status_code,
+                    'headers': dict(e.response.headers),
+                    'body': e.response.text
+                }
+            
+            # Return the detailed error as a JSON response to the browser
+            return jsonify(error_details), 500
         
-        # Calculate expiration
+        # Calculate token expiration
         expires_in = token_response.get('expires_in', 3600)
         expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
         
-        # Store or update token
+        # Store or update the token in the database
         wave_token = WaveToken.query.filter_by(company_id=company.id).first()
         if wave_token:
             wave_token.access_token = token_response['access_token']
             wave_token.refresh_token = token_response.get('refresh_token')
             wave_token.expires_at = expires_at
             wave_token.scope = token_response.get('scope')
+            print(f"Updated existing Wave token for company {company.id}.")
         else:
             wave_token = WaveToken(
                 company_id=company.id,
@@ -110,15 +142,21 @@ def callback():
                 scope=token_response.get('scope')
             )
             db.session.add(wave_token)
+            print(f"Created new Wave token for company {company.id}.")
         
         db.session.commit()
         
-        # Redirect to dashboard with success message
-        return redirect(f"{current_app.config['FRONTEND_URL']}/dashboard?wave_connected=true")
+        # Redirect to the frontend dashboard with a success indicator
+        frontend_url = current_app.config.get('FRONTEND_URL', '/')
+        print(f"Redirecting to frontend: {frontend_url}/dashboard?wave_connected=true")
+        return redirect(f"{frontend_url}/dashboard?wave_connected=true")
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        print(f"--- FATAL ERROR in /callback: {e} ---")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'An unexpected server error occurred.'}), 500
 
 
 @wave_bp.route('/status', methods=['GET'])
