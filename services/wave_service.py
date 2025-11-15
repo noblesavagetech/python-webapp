@@ -120,9 +120,8 @@ class WaveService:
     def get_customers(self, company_id, business_id):
         """Get customers for a business"""
         query = """
-        query GetCustomers($businessId: ID!, $page: Int!, $pageSize: Int!) {
+        query($businessId: ID!, $page: Int!, $pageSize: Int!) {
             business(id: $businessId) {
-                id
                 customers(page: $page, pageSize: $pageSize) {
                     pageInfo {
                         currentPage
@@ -152,9 +151,8 @@ class WaveService:
     def get_invoices(self, company_id, business_id):
         """Get invoices for a business"""
         query = """
-        query GetInvoices($businessId: ID!, $page: Int!, $pageSize: Int!) {
+        query($businessId: ID!, $page: Int!, $pageSize: Int!) {
             business(id: $businessId) {
-                id
                 invoices(page: $page, pageSize: $pageSize) {
                     pageInfo {
                         currentPage
