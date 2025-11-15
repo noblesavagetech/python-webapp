@@ -102,9 +102,6 @@ class WaveService:
                 defaultBusiness {
                     id
                     name
-                    currency {
-                        code
-                    }
                     isPersonal
                 }
             }
@@ -123,16 +120,20 @@ class WaveService:
     def get_customers(self, company_id, business_id):
         """Get customers for a business"""
         query = """
-        query GetCustomers($businessId: ID!) {
+        query GetCustomers($businessId: ID!, $page: Int!, $pageSize: Int!) {
             business(id: $businessId) {
-                customers {
+                id
+                customers(page: $page, pageSize: $pageSize) {
+                    pageInfo {
+                        currentPage
+                        totalPages
+                        totalCount
+                    }
                     edges {
                         node {
                             id
                             name
                             email
-                            createdAt
-                            modifiedAt
                         }
                     }
                 }
@@ -140,21 +141,36 @@ class WaveService:
         }
         """
         
-        variables = {'businessId': business_id}
+        variables = {
+            'businessId': business_id,
+            'page': 1,
+            'pageSize': 50
+        }
         result = self.make_graphql_request(company_id, query, variables)
         return result.get('data', {}).get('business', {}).get('customers', {})
     
     def get_invoices(self, company_id, business_id):
         """Get invoices for a business"""
         query = """
-        query GetInvoices($businessId: ID!) {
+        query GetInvoices($businessId: ID!, $page: Int!, $pageSize: Int!) {
             business(id: $businessId) {
-                invoices {
+                id
+                invoices(page: $page, pageSize: $pageSize) {
+                    pageInfo {
+                        currentPage
+                        totalPages
+                        totalCount
+                    }
                     edges {
                         node {
                             id
                             invoiceNumber
-                            total
+                            total {
+                                value
+                                currency {
+                                    code
+                                }
+                            }
                             status
                             createdAt
                             dueDate
@@ -169,7 +185,11 @@ class WaveService:
         }
         """
         
-        variables = {'businessId': business_id}
+        variables = {
+            'businessId': business_id,
+            'page': 1,
+            'pageSize': 50
+        }
         result = self.make_graphql_request(company_id, query, variables)
         return result.get('data', {}).get('business', {}).get('invoices', {})
     

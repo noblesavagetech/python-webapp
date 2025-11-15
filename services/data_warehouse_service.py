@@ -141,13 +141,18 @@ class DataWarehouseService:
             for edge in invoices_data.get('edges', []):
                 node = edge['node']
                 customer = node.get('customer', {})
+                
+                # Handle total as an object with value and currency
+                total_obj = node.get('total', {})
+                total_value = total_obj.get('value') if isinstance(total_obj, dict) else total_obj
+                
                 invoices.append((
                     node['id'],
                     company_id,
                     node.get('invoiceNumber'),
                     customer.get('id'),
                     customer.get('name'),
-                    node.get('total'),
+                    total_value,
                     node.get('status'),
                     node.get('createdAt'),
                     node.get('dueDate'),
@@ -180,6 +185,8 @@ class DataWarehouseService:
             return True
         except Exception as e:
             print(f"Error syncing invoices: {e}")
+            import traceback
+            traceback.print_exc()
             if conn:
                 conn.rollback()
             return False
