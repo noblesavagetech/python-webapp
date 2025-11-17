@@ -88,3 +88,4 @@ The app uses PostgreSQL with the following main tables:
 - Database migrations: `flask db migrate` and `flask db upgrade`
 - Initialize questionnaire: `python scripts/init_questionnaire.py`# Force redeploy
 # Force redeploy
+# Force redeploy 2
