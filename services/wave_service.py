@@ -457,6 +457,8 @@ class WaveService:
         }
         result = self.make_graphql_request(company_id, query, variables)
         return result.get('data', {}).get('business', {}).get('vendorPayments', {})
+
+    def sync_company_data(self, company_id):
         """Sync all Wave data for a company to data warehouse"""
         try:
             print(f"Starting Wave data sync for company {company_id}")
