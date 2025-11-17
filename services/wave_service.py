@@ -205,6 +205,8 @@ class WaveService:
         except Exception as e:
             print(f"Error fetching invoices: {e}")
             raise
+
+    def get_products(self, company_id, business_id):
         """Get products/services for a business"""
         query = """
         query($businessId: ID!) {
