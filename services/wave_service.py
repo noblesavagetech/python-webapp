@@ -86,12 +86,18 @@ class WaveService:
             'variables': variables or {}
         }
         
-        response = requests.post(self.api_url, json=payload, headers=headers)
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise Exception(f"Wave API request failed: {response.text}")
+        try:
+            response = requests.post(self.api_url, json=payload, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                try:
+                    return response.json()
+                except ValueError as e:
+                    raise Exception(f"Invalid JSON response from Wave API: {response.text}")
+            else:
+                raise Exception(f"Wave API request failed with status {response.status_code}: {response.text}")
+        except requests.RequestException as e:
+            raise Exception(f"Network error connecting to Wave API: {e}")
     
     def get_business_info(self, company_id):
         """Get business information from Wave"""
@@ -109,8 +115,14 @@ class WaveService:
         }
         """
         
-        result = self.make_graphql_request(company_id, query)
-        return result.get('data', {}).get('businesses', {})
+        try:
+            result = self.make_graphql_request(company_id, query)
+            if not result or 'data' not in result:
+                raise Exception(f"Invalid response structure from Wave API: {result}")
+            return result.get('data', {}).get('businesses', {})
+        except Exception as e:
+            print(f"Error fetching business info: {e}")
+            raise
     
     def get_customers(self, company_id, business_id):
         """Get customers for a business"""
@@ -138,8 +150,14 @@ class WaveService:
         variables = {
             'businessId': business_id
         }
-        result = self.make_graphql_request(company_id, query, variables)
-        return result.get('data', {}).get('business', {}).get('customers', {})
+        try:
+            result = self.make_graphql_request(company_id, query, variables)
+            if not result or 'data' not in result:
+                raise Exception(f"Invalid response structure from Wave API: {result}")
+            return result.get('data', {}).get('business', {}).get('customers', {})
+        except Exception as e:
+            print(f"Error fetching customers: {e}")
+            raise
     
     def get_invoices(self, company_id, business_id):
         """Get invoices for a business"""
@@ -179,7 +197,14 @@ class WaveService:
         variables = {
             'businessId': business_id
         }
-    def get_products(self, company_id, business_id):
+        try:
+            result = self.make_graphql_request(company_id, query, variables)
+            if not result or 'data' not in result:
+                raise Exception(f"Invalid response structure from Wave API: {result}")
+            return result.get('data', {}).get('business', {}).get('invoices', {})
+        except Exception as e:
+            print(f"Error fetching invoices: {e}")
+            raise
         """Get products/services for a business"""
         query = """
         query($businessId: ID!) {
@@ -215,8 +240,14 @@ class WaveService:
         variables = {
             'businessId': business_id
         }
-        result = self.make_graphql_request(company_id, query, variables)
-        return result.get('data', {}).get('business', {}).get('products', {})
+        try:
+            result = self.make_graphql_request(company_id, query, variables)
+            if not result or 'data' not in result:
+                raise Exception(f"Invalid response structure from Wave API: {result}")
+            return result.get('data', {}).get('business', {}).get('products', {})
+        except Exception as e:
+            print(f"Error fetching products: {e}")
+            raise
 
     def get_bills(self, company_id, business_id):
         """Get bills/expenses for a business"""
@@ -256,8 +287,14 @@ class WaveService:
         variables = {
             'businessId': business_id
         }
-        result = self.make_graphql_request(company_id, query, variables)
-        return result.get('data', {}).get('business', {}).get('bills', {})
+        try:
+            result = self.make_graphql_request(company_id, query, variables)
+            if not result or 'data' not in result:
+                raise Exception(f"Invalid response structure from Wave API: {result}")
+            return result.get('data', {}).get('business', {}).get('bills', {})
+        except Exception as e:
+            print(f"Error fetching bills: {e}")
+            raise
 
     def get_accounts(self, company_id, business_id):
         """Get chart of accounts for a business"""
@@ -287,8 +324,14 @@ class WaveService:
         variables = {
             'businessId': business_id
         }
-        result = self.make_graphql_request(company_id, query, variables)
-        return result.get('data', {}).get('business', {}).get('accounts', {})
+        try:
+            result = self.make_graphql_request(company_id, query, variables)
+            if not result or 'data' not in result:
+                raise Exception(f"Invalid response structure from Wave API: {result}")
+            return result.get('data', {}).get('business', {}).get('accounts', {})
+        except Exception as e:
+            print(f"Error fetching accounts: {e}")
+            raise
 
     def get_account_transactions(self, company_id, business_id, account_id=None, date_from=None, date_to=None):
         """Get transactions for accounts (if available in Wave API)"""
@@ -327,8 +370,12 @@ class WaveService:
         }
         try:
             result = self.make_graphql_request(company_id, query, variables)
+            if not result or 'data' not in result:
+                print(f"Warning: Invalid response structure from Wave API for transactions: {result}")
+                return {'edges': []}
             return result.get('data', {}).get('business', {}).get('account', {}).get('transactions', {})
-        except:
+        except Exception as e:
+            print(f"Error fetching account transactions: {e}")
             # If transactions aren't available, return empty
             return {'edges': []}
 
@@ -369,8 +416,14 @@ class WaveService:
         variables = {
             'businessId': business_id
         }
-        result = self.make_graphql_request(company_id, query, variables)
-        return result.get('data', {}).get('business', {})
+        try:
+            result = self.make_graphql_request(company_id, query, variables)
+            if not result or 'data' not in result:
+                raise Exception(f"Invalid response structure from Wave API: {result}")
+            return result.get('data', {}).get('business', {})
+        except Exception as e:
+            print(f"Error fetching business summary: {e}")
+            raise
 
     def get_payments(self, company_id, business_id):
         """Get payments received for a business"""
@@ -412,8 +465,14 @@ class WaveService:
         variables = {
             'businessId': business_id
         }
-        result = self.make_graphql_request(company_id, query, variables)
-        return result.get('data', {}).get('business', {}).get('payments', {})
+        try:
+            result = self.make_graphql_request(company_id, query, variables)
+            if not result or 'data' not in result:
+                raise Exception(f"Invalid response structure from Wave API: {result}")
+            return result.get('data', {}).get('business', {}).get('payments', {})
+        except Exception as e:
+            print(f"Error fetching payments: {e}")
+            raise
 
     def get_vendor_payments(self, company_id, business_id):
         """Get payments made to vendors for a business"""
@@ -455,8 +514,14 @@ class WaveService:
         variables = {
             'businessId': business_id
         }
-        result = self.make_graphql_request(company_id, query, variables)
-        return result.get('data', {}).get('business', {}).get('vendorPayments', {})
+        try:
+            result = self.make_graphql_request(company_id, query, variables)
+            if not result or 'data' not in result:
+                raise Exception(f"Invalid response structure from Wave API: {result}")
+            return result.get('data', {}).get('business', {}).get('vendorPayments', {})
+        except Exception as e:
+            print(f"Error fetching vendor payments: {e}")
+            raise
 
     def sync_company_data(self, company_id):
         """Sync all Wave data for a company to data warehouse"""
