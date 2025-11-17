@@ -285,8 +285,390 @@ class DataWarehouseService:
                 except:
                     pass
             return False, debug_info
-    
-    def get_company_metrics(self, company_id):
+
+    def sync_accounts(self, company_id, accounts_data):
+        """Sync chart of accounts data to data warehouse"""
+        conn = None
+        debug_info = []
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # Check if we're using SQLite
+            is_sqlite = isinstance(conn, sqlite3.Connection) if 'sqlite3' in str(type(conn)) else False
+            
+            # Create table if not exists
+            if is_sqlite:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS accounts (
+                        id TEXT PRIMARY KEY,
+                        company_id TEXT NOT NULL,
+                        name TEXT,
+                        type TEXT,
+                        subtype TEXT,
+                        balance REAL,
+                        currency TEXT,
+                        synced_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS accounts (
+                        id VARCHAR(255) PRIMARY KEY,
+                        company_id VARCHAR(36) NOT NULL,
+                        name VARCHAR(255),
+                        type VARCHAR(50),
+                        subtype VARCHAR(50),
+                        balance DECIMAL(15, 2),
+                        currency VARCHAR(3),
+                        synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+            
+            # Prepare data for insertion
+            accounts = []
+            for edge in accounts_data.get('edges', []):
+                node = edge['node']
+                balance_obj = node.get('balance', {})
+                
+                # Handle balance
+                if isinstance(balance_obj, dict):
+                    balance = balance_obj.get('value', 0)
+                    currency = balance_obj.get('currency', {}).get('code', 'USD')
+                else:
+                    balance = balance_obj or 0
+                    currency = 'USD'
+                
+                accounts.append((
+                    node['id'],
+                    company_id,
+                    node.get('name'),
+                    node.get('type'),
+                    node.get('subtype'),
+                    float(balance) if balance else 0.0,
+                    currency,
+                    datetime.utcnow().isoformat() if is_sqlite else datetime.utcnow()
+                ))
+            
+            # Insert data
+            if accounts:
+                if is_sqlite:
+                    cursor.executemany("""
+                        INSERT OR REPLACE INTO accounts 
+                        (id, company_id, name, type, subtype, balance, currency, synced_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, accounts)
+                else:
+                    execute_values(
+                        cursor,
+                        """
+                        INSERT INTO accounts (id, company_id, name, type, subtype, balance, currency, synced_at)
+                        VALUES %s
+                        ON CONFLICT (id) DO UPDATE SET
+                            name = EXCLUDED.name,
+                            type = EXCLUDED.type,
+                            subtype = EXCLUDED.subtype,
+                            balance = EXCLUDED.balance,
+                            currency = EXCLUDED.currency,
+                            synced_at = EXCLUDED.synced_at
+                        """,
+                        accounts
+                    )
+            
+            conn.commit()
+            cursor.close()
+            
+            return True, debug_info
+        except Exception as e:
+            debug_info.append(f"Error syncing accounts: {e}")
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            return False, debug_info
+
+    def sync_account_transactions(self, company_id, transactions_data, account_id=None):
+        """Sync account transaction data to data warehouse"""
+        conn = None
+        debug_info = []
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # Check if we're using SQLite
+            is_sqlite = isinstance(conn, sqlite3.Connection) if 'sqlite3' in str(type(conn)) else False
+            
+            # Create table if not exists
+            if is_sqlite:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS account_transactions (
+                        id TEXT PRIMARY KEY,
+                        company_id TEXT NOT NULL,
+                        account_id TEXT,
+                        date TEXT,
+                        description TEXT,
+                        amount REAL,
+                        currency TEXT DEFAULT 'USD',
+                        transaction_type TEXT,
+                        synced_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+            else:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS account_transactions (
+                        id VARCHAR(255) PRIMARY KEY,
+                        company_id VARCHAR(36) NOT NULL,
+                        account_id VARCHAR(255),
+                        date DATE,
+                        description TEXT,
+                        amount DECIMAL(15, 2),
+                        currency VARCHAR(3) DEFAULT 'USD',
+                        transaction_type VARCHAR(50),
+                        synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+            
+            # Prepare data for insertion
+            transactions = []
+            for edge in transactions_data.get('edges', []):
+                node = edge['node']
+                amount_obj = node.get('amount', {})
+                
+                # Handle amount
+                if isinstance(amount_obj, dict):
+                    amount = amount_obj.get('value', 0)
+                    currency = amount_obj.get('currency', {}).get('code', 'USD')
+                else:
+                    amount = amount_obj or 0
+                    currency = 'USD'
+                
+                transactions.append((
+                    node['id'],
+                    company_id,
+                    account_id,
+                    node.get('date'),
+                    node.get('description'),
+                    float(amount) if amount else 0.0,
+                    currency,
+                    node.get('type'),
+                    datetime.utcnow().isoformat() if is_sqlite else datetime.utcnow()
+                ))
+            
+            # Insert data
+            if transactions:
+                if is_sqlite:
+                    cursor.executemany("""
+                        INSERT OR REPLACE INTO account_transactions 
+                        (id, company_id, account_id, date, description, amount, currency, transaction_type, synced_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, transactions)
+                else:
+                    execute_values(
+                        cursor,
+                        """
+                        INSERT INTO account_transactions (id, company_id, account_id, date, description, amount, currency, transaction_type, synced_at)
+                        VALUES %s
+                        ON CONFLICT (id) DO UPDATE SET
+                            description = EXCLUDED.description,
+                            amount = EXCLUDED.amount,
+                            transaction_type = EXCLUDED.transaction_type,
+                            synced_at = EXCLUDED.synced_at
+                        """,
+                        transactions
+                    )
+            
+            conn.commit()
+            cursor.close()
+            
+            return True, debug_info
+        except Exception as e:
+            debug_info.append(f"Error syncing account transactions: {e}")
+            if conn:
+                try:
+                    conn.rollback()
+                except:
+                    pass
+            return False, debug_info
+        """Calculate Profit & Loss statement from synced data"""
+        conn = None
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # Check if we're using SQLite
+            is_sqlite = isinstance(conn, sqlite3.Connection) if 'sqlite3' in str(type(conn)) else False
+            
+            # Revenue: Sum of all paid invoices
+            if is_sqlite:
+                revenue_query = """
+                    SELECT COALESCE(SUM(total), 0) as revenue
+                    FROM invoices 
+                    WHERE company_id = ? AND status = 'PAID'
+                    AND (created_at >= ? OR ? IS NULL)
+                    AND (created_at <= ? OR ? IS NULL)
+                """
+                cursor.execute(revenue_query, (company_id, start_date, start_date, end_date, end_date))
+            else:
+                revenue_query = """
+                    SELECT COALESCE(SUM(total), 0) as revenue
+                    FROM invoices 
+                    WHERE company_id = %s AND status = 'PAID'
+                    AND (created_at >= %s OR %s IS NULL)
+                    AND (created_at <= %s OR %s IS NULL)
+                """
+                cursor.execute(revenue_query, (company_id, start_date, start_date, end_date, end_date))
+            
+            revenue = cursor.fetchone()[0] or 0
+            
+            # Cost of Goods Sold: This would need product cost data, for now estimate as percentage of revenue
+            cogs = revenue * 0.4  # 40% COGS assumption
+            
+            # Gross Profit
+            gross_profit = revenue - cogs
+            
+            # Operating Expenses: Sum of all paid bills
+            if is_sqlite:
+                expenses_query = """
+                    SELECT COALESCE(SUM(total), 0) as expenses
+                    FROM bills 
+                    WHERE company_id = ? AND status = 'PAID'
+                    AND (created_at >= ? OR ? IS NULL)
+                    AND (created_at <= ? OR ? IS NULL)
+                """
+                cursor.execute(expenses_query, (company_id, start_date, start_date, end_date, end_date))
+            else:
+                expenses_query = """
+                    SELECT COALESCE(SUM(total), 0) as expenses
+                    FROM bills 
+                    WHERE company_id = %s AND status = 'PAID'
+                    AND (created_at >= %s OR %s IS NULL)
+                    AND (created_at <= %s OR %s IS NULL)
+                """
+                cursor.execute(expenses_query, (company_id, start_date, start_date, end_date, end_date))
+            
+            expenses = cursor.fetchone()[0] or 0
+            
+            # Operating Profit
+            operating_profit = gross_profit - expenses
+            
+            # Net Profit (assuming no taxes/interest for simplicity)
+            net_profit = operating_profit
+            
+            cursor.close()
+            
+            return {
+                'revenue': float(revenue),
+                'cost_of_goods_sold': float(cogs),
+                'gross_profit': float(gross_profit),
+                'operating_expenses': float(expenses),
+                'operating_profit': float(operating_profit),
+                'net_profit': float(net_profit),
+                'period': f"{start_date or 'All time'} to {end_date or 'Present'}"
+            }
+            
+        except Exception as e:
+            print(f"Error calculating P&L: {e}")
+            return None
+        finally:
+            if conn:
+                conn.close()
+
+    def calculate_financial_ratios(self, company_id):
+        """Calculate key financial ratios for scoring"""
+        conn = None
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
+            # Check if we're using SQLite
+            is_sqlite = isinstance(conn, sqlite3.Connection) if 'sqlite3' in str(type(conn)) else False
+            
+            # Get current assets (if available from accounts)
+            if is_sqlite:
+                assets_query = """
+                    SELECT COALESCE(SUM(balance), 0) as total_assets
+                    FROM accounts 
+                    WHERE company_id = ? AND type = 'ASSET'
+                """
+                cursor.execute(assets_query, (company_id,))
+            else:
+                assets_query = """
+                    SELECT COALESCE(SUM(balance), 0) as total_assets
+                    FROM accounts 
+                    WHERE company_id = %s AND type = 'ASSET'
+                """
+                cursor.execute(assets_query, (company_id,))
+            
+            total_assets = cursor.fetchone()[0] or 0
+            
+            # Get current liabilities
+            if is_sqlite:
+                liabilities_query = """
+                    SELECT COALESCE(SUM(balance), 0) as total_liabilities
+                    FROM accounts 
+                    WHERE company_id = ? AND type = 'LIABILITY'
+                """
+                cursor.execute(liabilities_query, (company_id,))
+            else:
+                liabilities_query = """
+                    SELECT COALESCE(SUM(balance), 0) as total_liabilities
+                    FROM accounts 
+                    WHERE company_id = %s AND type = 'LIABILITY'
+                """
+                cursor.execute(liabilities_query, (company_id,))
+            
+            total_liabilities = cursor.fetchone()[0] or 0
+            
+            # Get equity
+            if is_sqlite:
+                equity_query = """
+                    SELECT COALESCE(SUM(balance), 0) as total_equity
+                    FROM accounts 
+                    WHERE company_id = ? AND type = 'EQUITY'
+                """
+                cursor.execute(equity_query, (company_id,))
+            else:
+                equity_query = """
+                    SELECT COALESCE(SUM(balance), 0) as total_equity
+                    FROM accounts 
+                    WHERE company_id = %s AND type = 'EQUITY'
+                """
+                cursor.execute(equity_query, (company_id,))
+            
+            total_equity = cursor.fetchone()[0] or 0
+            
+            # Calculate ratios
+            current_ratio = total_assets / total_liabilities if total_liabilities > 0 else 0
+            debt_to_equity = total_liabilities / total_equity if total_equity > 0 else 0
+            
+            # Get revenue and profit data for profitability ratios
+            pnl = self.calculate_pnl_statement(company_id)
+            if pnl:
+                profit_margin = pnl['net_profit'] / pnl['revenue'] if pnl['revenue'] > 0 else 0
+                gross_margin = pnl['gross_profit'] / pnl['revenue'] if pnl['revenue'] > 0 else 0
+            else:
+                profit_margin = 0
+                gross_margin = 0
+            
+            cursor.close()
+            
+            return {
+                'current_ratio': float(current_ratio),
+                'debt_to_equity_ratio': float(debt_to_equity),
+                'profit_margin': float(profit_margin),
+                'gross_margin': float(gross_margin),
+                'total_assets': float(total_assets),
+                'total_liabilities': float(total_liabilities),
+                'total_equity': float(total_equity)
+            }
+            
+        except Exception as e:
+            print(f"Error calculating financial ratios: {e}")
+            return None
+        finally:
+            if conn:
+                conn.close()
         """Get aggregated financial metrics for a company"""
         try:
             conn = self.get_connection()

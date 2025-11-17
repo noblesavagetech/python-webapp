@@ -290,6 +290,88 @@ class WaveService:
         result = self.make_graphql_request(company_id, query, variables)
         return result.get('data', {}).get('business', {}).get('accounts', {})
 
+    def get_account_transactions(self, company_id, business_id, account_id=None, date_from=None, date_to=None):
+        """Get transactions for accounts (if available in Wave API)"""
+        # Note: Wave may not provide detailed transaction history via API
+        # This is a placeholder for when/if they add this functionality
+        query = """
+        query($businessId: ID!, $accountId: ID, $dateFrom: Date, $dateTo: Date) {
+            business(id: $businessId) {
+                account(id: $accountId) {
+                    transactions(dateFrom: $dateFrom, dateTo: $dateTo, page: 1, pageSize: 100) {
+                        edges {
+                            node {
+                                id
+                                date
+                                description
+                                amount {
+                                    value
+                                    currency {
+                                        code
+                                    }
+                                }
+                                type
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        """
+
+        variables = {
+            'businessId': business_id,
+            'accountId': account_id,
+            'dateFrom': date_from,
+            'dateTo': date_to
+        }
+        try:
+            result = self.make_graphql_request(company_id, query, variables)
+            return result.get('data', {}).get('business', {}).get('account', {}).get('transactions', {})
+        except:
+            # If transactions aren't available, return empty
+            return {'edges': []}
+
+    def get_business_summary(self, company_id, business_id):
+        """Get business financial summary/metrics"""
+        query = """
+        query($businessId: ID!) {
+            business(id: $businessId) {
+                id
+                name
+                currency {
+                    code
+                }
+                invoices {
+                    pageInfo {
+                        totalCount
+                    }
+                }
+                customers {
+                    pageInfo {
+                        totalCount
+                    }
+                }
+                products {
+                    pageInfo {
+                        totalCount
+                    }
+                }
+                bills {
+                    pageInfo {
+                        totalCount
+                    }
+                }
+            }
+        }
+        """
+
+        variables = {
+            'businessId': business_id
+        }
+        result = self.make_graphql_request(company_id, query, variables)
+        return result.get('data', {}).get('business', {})
+
     def get_payments(self, company_id, business_id):
         """Get payments received for a business"""
         query = """
@@ -452,7 +534,51 @@ class WaveService:
                 raise Exception(error_msg)
             print("Bills synced successfully")
             
-            print(f"Wave data sync completed: {customer_count} customers, {invoice_count} invoices, {product_count} products, {bill_count} bills")
+            # Sync chart of accounts
+            print("Fetching chart of accounts from Wave...")
+            accounts = self.get_accounts(company_id, business_id)
+            account_count = len(accounts.get('edges', []))
+            print(f"Found {account_count} accounts")
+            
+            print("Syncing accounts to data warehouse...")
+            success, debug_info = self.dw_service.sync_accounts(company_id, accounts)
+            if not success:
+                error_msg = f"Failed to sync accounts to data warehouse. Debug info: {'; '.join(debug_info)}"
+                raise Exception(error_msg)
+            print("Accounts synced successfully")
+            
+            # Sync account transactions for bank accounts
+            print("Fetching account transactions from Wave...")
+            transaction_count = 0
+            
+            # Get transactions for each account (focus on bank accounts)
+            for account_edge in accounts.get('edges', []):
+                account = account_edge['node']
+                account_id = account['id']
+                account_name = account.get('name', '')
+                account_type = account.get('type', '')
+                
+                # Only fetch transactions for bank/asset accounts
+                if account_type in ['ASSET'] or 'bank' in account_name.lower() or 'checking' in account_name.lower() or 'savings' in account_name.lower():
+                    try:
+                        print(f"Fetching transactions for account: {account_name}")
+                        transactions = self.get_account_transactions(company_id, business_id, account_id)
+                        account_transaction_count = len(transactions.get('edges', []))
+                        transaction_count += account_transaction_count
+                        print(f"Found {account_transaction_count} transactions for {account_name}")
+                        
+                        # Sync transactions for this account
+                        success, debug_info = self.dw_service.sync_account_transactions(company_id, transactions, account_id)
+                        if not success:
+                            print(f"Warning: Failed to sync transactions for account {account_name}: {'; '.join(debug_info)}")
+                        else:
+                            print(f"Synced transactions for {account_name}")
+                    except Exception as e:
+                        print(f"Warning: Could not fetch transactions for account {account_name}: {e}")
+            
+            print(f"Account transactions sync completed: {transaction_count} total transactions")
+            
+            print(f"Wave data sync completed: {customer_count} customers, {invoice_count} invoices, {product_count} products, {bill_count} bills, {account_count} accounts, {transaction_count} transactions")
             return True
             
         except Exception as e:
